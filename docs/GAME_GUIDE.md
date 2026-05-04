@@ -1,8 +1,8 @@
-## Game Guide (Lua API)
+# Game Guide — Lua API
 
-Games use the Lua helper `dualscreen.lua`, which drives the real secondary display on Android (via `love.dualscreen`) and simulates dual-screen on desktop.
+Games use the `dualscreen.lua` library, which drives the real secondary display on Android (via `love.dualscreen`) and simulates dual-screen on desktop.
 
-### Minimal pattern
+## Minimal Pattern
 
 ```lua
 local ds = require("dualscreen")
@@ -20,10 +20,10 @@ function love.draw()
     love.graphics.print("Bottom", 10, 10)
   end)
 
-  -- Android: blit bottom canvas to the physical second display.
+  -- Android: blit bottom canvas to the physical second display
   ds.present()
 
-  -- Desktop: draw both canvases into the window for preview.
+  -- Desktop: draw both canvases into the window for preview
   ds.drawSimulation("vertical")
 end
 
@@ -32,9 +32,25 @@ function love.quit()
 end
 ```
 
-### API summary
+## API Reference
 
-- `ds.init(opts)` : initialize dual-screen (real on Android, simulated on desktop)\n+- `ds.isAvailable()` : `true` when the secondary output is active (or simulated)\n+- `ds.isSimulating()` : `true` on desktop simulation\n+- `ds.getDisplayCount()` : `1` or `2`\n+- `ds.getDimensions(\"top\"|\"bottom\")` : width/height\n+- `ds.getDisplayInfo(\"top\"|\"bottom\")` : `{width,height,refreshRate,available}`\n+- `ds.drawToTop(fn)` / `ds.drawToBottom(fn)` : draw callbacks into canvases/backbuffer\n+- `ds.present()` : Android-only physical present\n+- `ds.drawSimulation(\"vertical\"|\"horizontal\")` : desktop-only preview\n+- `ds.deinit()` : cleanup\n+
-### Notes
+| Function | Description |
+|---|---|
+| `ds.init(opts)` | Initialize dual-screen (real on Android, simulated on desktop). Options: `{ simScale, top = {width, height}, bottom = {width, height} }` |
+| `ds.isAvailable()` | `true` when the secondary output is active (or simulated) |
+| `ds.isSimulating()` | `true` on desktop simulation |
+| `ds.getDisplayCount()` | Returns `1` or `2` |
+| `ds.getDimensions("top"\|"bottom")` | Returns `width, height` for the given screen |
+| `ds.getDisplayInfo("top"\|"bottom")` | Returns `{ width, height, refreshRate, available }` |
+| `ds.drawToTop(fn)` | Draw into the top screen. Callback receives `(width, height)` |
+| `ds.drawToBottom(fn)` | Draw into the bottom screen. Callback receives `(width, height)` |
+| `ds.present()` | Android-only — blit the bottom canvas to the physical second display |
+| `ds.drawSimulation(layout)` | Desktop-only — render both screens in the window. Layout: `"vertical"` (default) or `"horizontal"` |
+| `ds.deinit()` | Clean up resources. Call from `love.quit()` |
 
-- The bottom screen is presented via a dedicated Android `Presentation` surface and a shared EGL context.\n+- SDL only manages the primary window; the secondary display is bypassing SDL on Android.\n+
+## Notes
+
+- The bottom screen is presented via a dedicated Android `Presentation` surface and a shared EGL context.
+- SDL only manages the primary window; the secondary display bypasses SDL on Android.
+- On desktop, both screens are drawn to offscreen canvases and composited into the window by `drawSimulation()`.
+- The default simulated display sizes match the Ayn Thor: 1920x1080 (top) and 1080x1240 (bottom).
