@@ -1,0 +1,42 @@
+name: build-demo-apk
+
+on:
+  workflow_dispatch: {}
+  push:
+    branches: ["main", "master"]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (with submodules)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      # NOTE:
+      # This workflow is a scaffold. The exact Gradle tasks / variants depend on your love-android fork.
+      # Once `android/` is added as a submodule, update the paths below to match your project.
+
+      - name: Sync engine into android tree (if needed)
+        run: |
+          bash ./scripts/sync-engine.sh engine android app/src/main/cpp/love
+
+      - name: Build APK
+        working-directory: android
+        run: |
+          ./gradlew assembleEmbedNoRecordDebug
+
+      - name: Upload APK(s)
+        uses: actions/upload-artifact@v4
+        with:
+          name: apk
+          path: |
+            android/**/build/outputs/apk/**/*.apk
+

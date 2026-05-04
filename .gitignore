@@ -1,0 +1,18 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+*.swp
+*.swo
+
+# Node / misc
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Android Studio / Gradle (only affects if not in submodule)
+**/.gradle/
+**/build/
+**/*.iml
+**/.idea/
+

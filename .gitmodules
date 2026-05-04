@@ -1,0 +1,6 @@
+[submodule "engine"]
+	path = engine
+	url = https://github.com/Jtmaca9/love2d.git
+[submodule "android"]
+	path = android
+	url = https://github.com/Jtmaca9/love-android.git
