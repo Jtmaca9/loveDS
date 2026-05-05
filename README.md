@@ -6,14 +6,16 @@ Build dual-screen games for Android handhelds like the **Ayn Thor** using [LÖVE
 
 loveDS gives you a simple Lua API (`dualscreen.lua`) that renders to two independent displays — the main screen and a secondary touchscreen — backed by a custom Love2D engine fork and an Android wrapper that drives the second display via a dedicated `Presentation` surface.
 
-On desktop, your game runs in a simulated split-view window so you can develop and test without hardware.
+On desktop or single-screen devices, your game runs in a stacked composite view so you can develop and test without hardware.
 
 ## Features
 
-- **`dualscreen.lua`** — drop-in Lua library with `drawToTop()` / `drawToBottom()` callbacks
-- **Desktop simulation** — preview both screens side-by-side in a single window
+- **`dualscreen.lua`** — drop-in Lua library with `drawToPrimary()` / `drawToSecondary()` callbacks
+- **Per-screen rendering config** — target resolution, scale modes (fit / stretch / fill / none)
+- **Single-screen modes** — stacked composite or primary-only, works on desktop and single-screen Android
+- **Content swapping** — `swapScreens()` to swap what's shown on each display at runtime
+- **Touch on both screens** — symmetric touch API with coordinate normalization
 - **Full LÖVE API** — use everything you already know (graphics, audio, input, gamepads)
-- **Touch on the bottom screen** — independent touch input on the secondary display
 - **Template game included** — clone, build, and run a working example in minutes
 
 ## Getting Started
@@ -22,7 +24,7 @@ On desktop, your game runs in a simulated split-view window so you can develop a
 
 - [Android Studio](https://developer.android.com/studio) (recent stable)
 - Android NDK (install via Android Studio's SDK Manager)
-- A dual-screen Android device (e.g. Ayn Thor) or the desktop simulator
+- A dual-screen Android device (e.g. Ayn Thor) or desktop for stacked preview
 
 ### 1. Clone the repo
 
@@ -51,7 +53,7 @@ Copy-Item -Recurse template\game\* android\app\src\embed\assets\
 2. Select build variant **`embedNoRecordDebug`**
 3. Run on your device
 
-The top screen shows a movable player dot (D-pad / stick / arrow keys), and the bottom screen shows a map view with touch indicators.
+The primary screen shows a movable player dot (D-pad / stick / arrow keys), and the secondary screen shows a map view with touch indicators. Press Tab to swap screens.
 
 ## Project Structure
 
@@ -76,20 +78,26 @@ Copy `template/game/` as a starting point and edit `main.lua`. The core pattern 
 local ds = require("dualscreen")
 
 function love.load()
-    ds.init()
+    ds.init({
+        primary   = { targetWidth = 960, targetHeight = 540, scaleMode = "fit" },
+        secondary = { targetWidth = 540, targetHeight = 620, scaleMode = "fit" },
+    })
+end
+
+function love.update(dt)
+    ds.update()
 end
 
 function love.draw()
-    ds.drawToTop(function(w, h)
-        love.graphics.print("Hello from the top screen!", 10, 10)
+    ds.drawToPrimary(function(w, h)
+        love.graphics.print("Hello from the primary screen!", 10, 10)
     end)
 
-    ds.drawToBottom(function(w, h)
-        love.graphics.print("Hello from the bottom screen!", 10, 10)
+    ds.drawToSecondary(function(w, h)
+        love.graphics.print("Hello from the secondary screen!", 10, 10)
     end)
 
     ds.present()
-    ds.drawSimulation("vertical")
 end
 
 function love.quit()

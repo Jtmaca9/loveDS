@@ -10,10 +10,36 @@ local DEADZONE = 0.25
 
 function love.load()
     ds.init({
-        simScale = 0.5,
+        primary = {
+            targetWidth  = 960,
+            targetHeight = 540,
+            scaleMode    = "fit",
+        },
+        secondary = {
+            targetWidth  = 540,
+            targetHeight = 620,
+            scaleMode    = "fit",
+        },
+        singleScreenMode   = "stacked",
+        singleScreenLayout = "vertical",
     })
 
     love.graphics.setBackgroundColor(0.1, 0.1, 0.15)
+
+    ds.setTouchCallbacks("secondary", {
+        onPressed = function(id, x, y, pressure)
+            touches[id] = { x = x, y = y }
+        end,
+        onMoved = function(id, x, y, pressure)
+            if touches[id] then
+                touches[id].x = x
+                touches[id].y = y
+            end
+        end,
+        onReleased = function(id, x, y, pressure)
+            touches[id] = nil
+        end,
+    })
 
     local joysticks = love.joystick.getJoysticks()
     if #joysticks > 0 then
@@ -38,6 +64,8 @@ function love.joystickremoved(joystick)
 end
 
 function love.update(dt)
+    ds.update()
+
     local dx, dy = 0, 0
 
     if love.keyboard.isDown("left")  then dx = dx - 1 end
@@ -65,13 +93,13 @@ function love.update(dt)
     player.x = player.x + dx * player.speed * dt
     player.y = player.y + dy * player.speed * dt
 
-    local tw, th = ds.getDimensions("top")
+    local tw, th = ds.getTargetDimensions("primary")
     player.x = player.x % tw
     player.y = player.y % th
 end
 
 function love.draw()
-    ds.drawToTop(function(w, h)
+    ds.drawToPrimary(function(w, h)
         love.graphics.setColor(0.1, 0.1, 0.15)
         love.graphics.rectangle("fill", 0, 0, w, h)
 
@@ -79,22 +107,17 @@ function love.draw()
         love.graphics.circle("fill", player.x, player.y, 30)
 
         love.graphics.setColor(1, 1, 1)
-        love.graphics.print("Top Screen - D-pad/stick or arrow keys to move", 10, 10)
+        love.graphics.print("Primary Screen - D-pad/stick or arrow keys to move", 10, 10)
         love.graphics.print(string.format("Player: %.0f, %.0f", player.x, player.y), 10, 30)
-        love.graphics.print(string.format("Displays: %d | Available: %s | Simulating: %s",
+        love.graphics.print(string.format("Displays: %d | Dual: %s | Swapped: %s",
             ds.getDisplayCount(),
-            tostring(ds.isAvailable()),
-            tostring(ds.isSimulating())), 10, 50)
-        local ti = ds.getDisplayInfo("top")
-        local bi = ds.getDisplayInfo("bottom")
-        love.graphics.print(string.format("Top: %dx%d @ %.0fHz | Bottom: %dx%d @ %.0fHz",
-            ti.width, ti.height, ti.refreshRate or 0,
-            bi.width, bi.height, bi.refreshRate or 0), 10, 70)
+            tostring(ds.isDualScreen()),
+            tostring(ds.isSwapped())), 10, 50)
         love.graphics.print(string.format("Gamepad: %s",
-            gamepad and gamepad:getName() or "none"), 10, 90)
+            gamepad and gamepad:getName() or "none"), 10, 70)
     end)
 
-    ds.drawToBottom(function(w, h)
+    ds.drawToSecondary(function(w, h)
         love.graphics.setColor(0.05, 0.05, 0.1)
         love.graphics.rectangle("fill", 0, 0, w, h)
 
@@ -106,7 +129,7 @@ function love.draw()
             love.graphics.line(0, y, w, y)
         end
 
-        local tw, th = ds.getDimensions("top")
+        local tw, th = ds.getTargetDimensions("primary")
         local mapX = (player.x / tw) * w
         local mapY = (player.y / th) * h
         love.graphics.setColor(1, 0.3, 0.3)
@@ -118,32 +141,18 @@ function love.draw()
         end
 
         love.graphics.setColor(0.7, 0.7, 0.7)
-        love.graphics.print("Bottom Screen - Map View", 10, 10)
+        love.graphics.print("Secondary Screen - Map View", 10, 10)
         love.graphics.print(string.format("%dx%d", w, h), 10, 30)
     end)
 
     ds.present()
-    ds.drawSimulation("vertical")
-end
-
-function love.touchpressed(id, x, y, dx, dy, pressure)
-    touches[id] = { x = x, y = y }
-end
-
-function love.touchmoved(id, x, y, dx, dy, pressure)
-    if touches[id] then
-        touches[id].x = x
-        touches[id].y = y
-    end
-end
-
-function love.touchreleased(id, x, y, dx, dy, pressure)
-    touches[id] = nil
 end
 
 function love.keypressed(key)
     if key == "escape" then
         love.event.quit()
+    elseif key == "tab" then
+        ds.swapScreens()
     end
 end
 
@@ -156,4 +165,3 @@ end
 function love.quit()
     ds.deinit()
 end
-
