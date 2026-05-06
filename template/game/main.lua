@@ -13,8 +13,9 @@ local splitIdx     = 1
 local layoutIdx    = 1
 local touches      = {}
 local gamepad      = nil
-local ball         = { x = 0, y = 0, vx = 180, vy = 120 }
-local time         = 0
+local priBall = { x = 0, y = 0, vx = 180, vy = 120 }
+local secBall = { x = 0, y = 0, vx = -130, vy = 160 }
+local time    = 0
 
 local function reinit()
     ds.deinit()
@@ -43,9 +44,13 @@ local function reinit()
         stackedSplit       = SPLIT_MODES[splitIdx],
     })
 
-    local tw, th = ds.getTargetDimensions("primary")
-    ball.x = tw / 2
-    ball.y = th / 2
+    local pw, ph = ds.getTargetDimensions("primary")
+    priBall.x = pw / 2
+    priBall.y = ph / 2
+
+    local sw, sh = ds.getTargetDimensions("secondary")
+    secBall.x = sw / 2
+    secBall.y = sh / 2
 end
 
 function love.load()
@@ -84,11 +89,24 @@ function love.update(dt)
     ds.update()
     time = time + dt
 
-    local tw, th = ds.getTargetDimensions("primary")
-    ball.x = ball.x + ball.vx * dt
-    ball.y = ball.y + ball.vy * dt
-    if ball.x < 0 or ball.x > tw then ball.vx = -ball.vx; ball.x = math.max(0, math.min(tw, ball.x)) end
-    if ball.y < 0 or ball.y > th then ball.vy = -ball.vy; ball.y = math.max(0, math.min(th, ball.y)) end
+    local priW, priH, secW, secH
+    if ds.isSwapped() then
+        priW, priH = ds.getTargetDimensions("secondary")
+        secW, secH = ds.getTargetDimensions("primary")
+    else
+        priW, priH = ds.getTargetDimensions("primary")
+        secW, secH = ds.getTargetDimensions("secondary")
+    end
+
+    priBall.x = priBall.x + priBall.vx * dt
+    priBall.y = priBall.y + priBall.vy * dt
+    if priBall.x < 0 or priBall.x > priW then priBall.vx = -priBall.vx; priBall.x = math.max(0, math.min(priW, priBall.x)) end
+    if priBall.y < 0 or priBall.y > priH then priBall.vy = -priBall.vy; priBall.y = math.max(0, math.min(priH, priBall.y)) end
+
+    secBall.x = secBall.x + secBall.vx * dt
+    secBall.y = secBall.y + secBall.vy * dt
+    if secBall.x < 0 or secBall.x > secW then secBall.vx = -secBall.vx; secBall.x = math.max(0, math.min(secW, secBall.x)) end
+    if secBall.y < 0 or secBall.y > secH then secBall.vy = -secBall.vy; secBall.y = math.max(0, math.min(secH, secBall.y)) end
 end
 
 local function drawGrid(w, h, spacing, r, g, b)
@@ -117,7 +135,7 @@ function love.draw()
         drawCanvasBorder(w, h)
 
         love.graphics.setColor(0.2, 0.7, 1.0, 0.8)
-        love.graphics.circle("fill", ball.x, ball.y, 20)
+        love.graphics.circle("fill", priBall.x, priBall.y, 20)
 
         for id, t in pairs(touches) do
             if t.pri then
@@ -176,11 +194,8 @@ function love.draw()
         drawGrid(w, h, 50, 0.2, 0.4, 0.2)
         drawCanvasBorder(w, h)
 
-        local tw, th = ds.getTargetDimensions("primary")
-        local mapX = (ball.x / tw) * w
-        local mapY = (ball.y / th) * h
-        love.graphics.setColor(0.2, 0.7, 1.0, 0.7)
-        love.graphics.circle("fill", mapX, mapY, 6)
+        love.graphics.setColor(1, 0.4, 0.4, 0.8)
+        love.graphics.circle("fill", secBall.x, secBall.y, 15)
 
         local touchCount = 0
         for id, t in pairs(touches) do
