@@ -1,16 +1,18 @@
 -- Dual-Screen Feature Demo for LÖVE + Ayn Thor
--- Demonstrates all scale modes, touch, swap, layout toggle, and state queries.
+-- Demonstrates all scale modes, split modes, touch, swap, layout toggle, and device presets.
 
 local ds = require("dualscreen")
 
 local SCALE_MODES = { "fit", "fill", "fit-width", "fit-height", "stretch", "none" }
+local SPLIT_MODES = { "equal", "physical", 0.6 }
+local SPLIT_LABELS = { "equal (50/50)", "physical (device AR)", "0.6 (60/40)" }
 local LAYOUTS     = { "vertical", "horizontal" }
 
-local scaleModeIdx = 4   -- start on "fit-height" to show off the new mode
+local scaleModeIdx = 4   -- start on "fit-height"
+local splitIdx     = 1
 local layoutIdx    = 1
 local touches      = {}
 local gamepad      = nil
-local DEADZONE     = 0.25
 local ball         = { x = 0, y = 0, vx = 180, vy = 120 }
 local time         = 0
 
@@ -29,7 +31,8 @@ local function reinit()
     end
 
     ds.init({
-        primary   = pOpts,
+        device   = ds.PRESETS.AYN_THOR,
+        primary  = pOpts,
         secondary = {
             targetWidth  = 540,
             targetHeight = 620,
@@ -37,6 +40,7 @@ local function reinit()
         },
         singleScreenMode   = "stacked",
         singleScreenLayout = LAYOUTS[layoutIdx],
+        stackedSplit       = SPLIT_MODES[splitIdx],
     })
 
     local tw, th = ds.getTargetDimensions("primary")
@@ -134,15 +138,17 @@ function love.draw()
 
         info("=== DUAL-SCREEN FEATURE DEMO ===")
         y = y + 4
-        info(string.format("Scale Mode: %s  [S to cycle]", mode))
+        info(string.format("Scale Mode: %s", mode))
+        info(string.format("Split: %s", SPLIT_LABELS[splitIdx]))
         info(string.format("Canvas: %dx%d   Physical: %dx%d", w, h, pw, ph))
-        info(string.format("Layout: %s  [L to toggle]", LAYOUTS[layoutIdx]))
-        info(string.format("Displays: %d | Dual: %s | Swapped: %s",
+        info(string.format("Layout: %s", LAYOUTS[layoutIdx]))
+        info(string.format("Device: AYN_THOR | Displays: %d | Dual: %s | Swapped: %s",
             ds.getDisplayCount(), tostring(ds.isDualScreen()), tostring(ds.isSwapped())))
         info(string.format("Gamepad: %s", gamepad and gamepad:getName() or "none"))
         y = y + 8
         info("Controls:          Keyboard / Gamepad")
         info("  Cycle scale mode:   S / X")
+        info("  Cycle split mode:   D / LB")
         info("  Toggle layout:      L / Y")
         info("  Swap screens:       Tab / Start")
         info("  Quit:               Esc / Back")
@@ -210,6 +216,9 @@ function love.keypressed(key)
     elseif key == "s" then
         scaleModeIdx = (scaleModeIdx % #SCALE_MODES) + 1
         reinit()
+    elseif key == "d" then
+        splitIdx = (splitIdx % #SPLIT_MODES) + 1
+        reinit()
     elseif key == "l" then
         layoutIdx = (layoutIdx % #LAYOUTS) + 1
         reinit()
@@ -221,6 +230,9 @@ function love.gamepadpressed(joystick, button)
         love.event.quit()
     elseif button == "x" then
         scaleModeIdx = (scaleModeIdx % #SCALE_MODES) + 1
+        reinit()
+    elseif button == "leftshoulder" then
+        splitIdx = (splitIdx % #SPLIT_MODES) + 1
         reinit()
     elseif button == "y" then
         layoutIdx = (layoutIdx % #LAYOUTS) + 1

@@ -50,7 +50,9 @@ ds.init({
     },
     singleScreenMode   = "stacked",   -- "stacked" | "primary-only"
     singleScreenLayout = "vertical",  -- "vertical" | "horizontal"
+    stackedSplit       = "equal",     -- "equal" | "physical" | 0.0-1.0
     primaryScreen      = "main",      -- "main" | "ext"
+    device             = ds.PRESETS.AYN_THOR,  -- override desktop physical dims
 })
 ```
 
@@ -88,6 +90,44 @@ When only one display is available (desktop, single-screen Android):
 | `"primary-only"` | Only the primary screen is shown; secondary still renders to a hidden canvas |
 
 In `"primary-only"` mode, call `ds.swapScreens()` to swap which content is visible.
+
+### Stacked split
+
+Controls how the window is divided between the two screens in stacked mode:
+
+| Value | Behaviour |
+|---|---|
+| `"equal"` (default) | 50/50 split — each screen gets half the window |
+| `"physical"` | Proportional split based on physical screen dimensions |
+| `0.0`–`1.0` | Custom fraction — e.g. `0.6` gives primary 60% of the space |
+
+### Device presets
+
+On desktop, the library needs to know the physical screen dimensions for accurate simulation. Pass a `device` table to `init()` to override the defaults:
+
+```lua
+ds.init({
+    device = ds.PRESETS.AYN_THOR,  -- 1920x1080 main + 1080x1240 ext
+    ...
+})
+```
+
+Available presets:
+
+| Preset | Main display | Ext display |
+|---|---|---|
+| `ds.PRESETS.AYN_THOR` | 1920x1080 @120Hz | 1080x1240 @60Hz |
+
+You can also pass a custom device table:
+
+```lua
+device = {
+    main = { width = 1920, height = 1080, refreshRate = 120 },
+    ext  = { width = 1080, height = 1240, refreshRate = 60  },
+}
+```
+
+On Android, `device` is ignored — real display info is read from the hardware.
 
 ### Primary screen mapping
 

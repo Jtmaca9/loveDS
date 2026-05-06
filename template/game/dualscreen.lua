@@ -41,11 +41,22 @@ Usage:
 local dualscreen = {}
 
 ---------------------------------------------------------------------------
+-- Device presets (used as desktop fallback physical dimensions)
+---------------------------------------------------------------------------
+
+dualscreen.PRESETS = {
+    AYN_THOR = {
+        main = { width = 1920, height = 1080, refreshRate = 120 },
+        ext  = { width = 1080, height = 1240, refreshRate = 60  },
+    },
+}
+
+---------------------------------------------------------------------------
 -- Defaults & constants
 ---------------------------------------------------------------------------
 
-local DEFAULT_MAIN = { width = 1920, height = 1080, refreshRate = 120 }
-local DEFAULT_EXT  = { width = 1080, height = 1240, refreshRate = 60  }
+local DEFAULT_MAIN = dualscreen.PRESETS.AYN_THOR.main
+local DEFAULT_EXT  = dualscreen.PRESETS.AYN_THOR.ext
 
 local ACTION_DOWN         = 0
 local ACTION_UP           = 1
@@ -65,6 +76,7 @@ local contentSwapped = false
 local config = {
     singleScreenMode   = "stacked",
     singleScreenLayout = "vertical",
+    stackedSplit       = "equal",
     primaryScreen      = "main",
 }
 
@@ -220,78 +232,63 @@ local function presentDualScreen()
     end
 end
 
+local function drawSlotInSurface(slot, surfX, surfY, surfW, surfH)
+    if not slot.canvas then return end
+    local dx, dy, sx, sy = computeDrawParams(
+        slot.targetWidth, slot.targetHeight,
+        surfW, surfH, slot.scaleMode)
+    slot.drawX, slot.drawY       = surfX + dx, surfY + dy
+    slot.drawScaleX, slot.drawScaleY = sx, sy
+
+    love.graphics.setScissor(surfX, surfY, surfW, surfH)
+    love.graphics.draw(slot.canvas, slot.drawX, slot.drawY, 0, sx, sy)
+    love.graphics.setScissor()
+
+    love.graphics.setColor(0.4, 0.4, 0.4, 1)
+    love.graphics.rectangle("line", surfX, surfY, surfW, surfH)
+    love.graphics.setColor(1, 1, 1, 1)
+end
+
+local function computeSplitFraction()
+    local split = config.stackedSplit
+    if type(split) == "number" then
+        return math.max(0.1, math.min(0.9, split))
+    elseif split == "physical" then
+        local ps = slots.primary
+        local ss = slots.secondary
+        if config.singleScreenLayout == "vertical" then
+            return ps.physicalHeight / (ps.physicalHeight + ss.physicalHeight)
+        else
+            return ps.physicalWidth / (ps.physicalWidth + ss.physicalWidth)
+        end
+    end
+    return 0.5
+end
+
 local function presentStacked()
     local ww = love.graphics.getWidth()
     local wh = love.graphics.getHeight()
     local ps = slots.primary
     local ss = slots.secondary
     local layout = config.singleScreenLayout
+    local frac   = computeSplitFraction()
 
     love.graphics.setCanvas()
     love.graphics.clear(0.12, 0.12, 0.14, 1)
     love.graphics.setColor(1, 1, 1, 1)
 
-    local tw, th = ps.targetWidth, ps.targetHeight
-    local bw, bh = ss.targetWidth, ss.targetHeight
-
     if layout == "vertical" then
-        local maxW   = math.max(tw, bw)
-        local totalH = th + bh + STACKED_GAP
-        local s      = math.min(ww / maxW, wh / totalH)
-
-        local stw, sth = tw * s, th * s
-        local sbw, sbh = bw * s, bh * s
-        local totalSH  = sth + STACKED_GAP + sbh
-        local yOff     = (wh - totalSH) / 2
-
-        local px = (ww - stw) / 2
-        local py = yOff
-        ps.drawX, ps.drawY, ps.drawScaleX, ps.drawScaleY = px, py, s, s
-        if ps.canvas then
-            love.graphics.draw(ps.canvas, px, py, 0, s, s)
-            love.graphics.setColor(0.4, 0.4, 0.4, 1)
-            love.graphics.rectangle("line", px, py, stw, sth)
-            love.graphics.setColor(1, 1, 1, 1)
-        end
-
-        local sx = (ww - sbw) / 2
-        local sy = yOff + sth + STACKED_GAP
-        ss.drawX, ss.drawY, ss.drawScaleX, ss.drawScaleY = sx, sy, s, s
-        if ss.canvas then
-            love.graphics.draw(ss.canvas, sx, sy, 0, s, s)
-            love.graphics.setColor(0.4, 0.4, 0.4, 1)
-            love.graphics.rectangle("line", sx, sy, sbw, sbh)
-            love.graphics.setColor(1, 1, 1, 1)
-        end
-    else -- horizontal
-        local totalW = tw + bw + STACKED_GAP
-        local maxH   = math.max(th, bh)
-        local s      = math.min(ww / totalW, wh / maxH)
-
-        local stw, sth = tw * s, th * s
-        local sbw, sbh = bw * s, bh * s
-        local totalSW  = stw + STACKED_GAP + sbw
-        local xOff     = (ww - totalSW) / 2
-
-        local px = xOff
-        local py = (wh - sth) / 2
-        ps.drawX, ps.drawY, ps.drawScaleX, ps.drawScaleY = px, py, s, s
-        if ps.canvas then
-            love.graphics.draw(ps.canvas, px, py, 0, s, s)
-            love.graphics.setColor(0.4, 0.4, 0.4, 1)
-            love.graphics.rectangle("line", px, py, stw, sth)
-            love.graphics.setColor(1, 1, 1, 1)
-        end
-
-        local sx = xOff + stw + STACKED_GAP
-        local sy = (wh - sbh) / 2
-        ss.drawX, ss.drawY, ss.drawScaleX, ss.drawScaleY = sx, sy, s, s
-        if ss.canvas then
-            love.graphics.draw(ss.canvas, sx, sy, 0, s, s)
-            love.graphics.setColor(0.4, 0.4, 0.4, 1)
-            love.graphics.rectangle("line", sx, sy, sbw, sbh)
-            love.graphics.setColor(1, 1, 1, 1)
-        end
+        local available = wh - STACKED_GAP
+        local priH = math.floor(available * frac)
+        local secH = available - priH
+        drawSlotInSurface(ps, 0, 0, ww, priH)
+        drawSlotInSurface(ss, 0, priH + STACKED_GAP, ww, secH)
+    else
+        local available = ww - STACKED_GAP
+        local priW = math.floor(available * frac)
+        local secW = available - priW
+        drawSlotInSurface(ps, 0, 0, priW, wh)
+        drawSlotInSurface(ss, priW + STACKED_GAP, 0, secW, wh)
     end
 end
 
@@ -457,8 +454,10 @@ function dualscreen.init(opts)
 
     config.singleScreenMode   = opts.singleScreenMode   or "stacked"
     config.singleScreenLayout = opts.singleScreenLayout or "vertical"
+    config.stackedSplit       = opts.stackedSplit       or "equal"
     config.primaryScreen      = opts.primaryScreen      or "main"
 
+    local device = opts.device
     local secondaryPhysical = config.primaryScreen == "main" and "ext" or "main"
 
     if isAndroid() then
@@ -474,6 +473,9 @@ function dualscreen.init(opts)
     if native then
         mainPhys = native.getDisplayInfo("main")
         extPhys  = native.getDisplayInfo("ext")
+    elseif device then
+        mainPhys = { width = device.main.width, height = device.main.height, refreshRate = device.main.refreshRate or 60 }
+        extPhys  = { width = device.ext.width,  height = device.ext.height,  refreshRate = device.ext.refreshRate  or 60 }
     else
         mainPhys = { width = DEFAULT_MAIN.width, height = DEFAULT_MAIN.height, refreshRate = DEFAULT_MAIN.refreshRate }
         extPhys  = { width = DEFAULT_EXT.width,  height = DEFAULT_EXT.height,  refreshRate = DEFAULT_EXT.refreshRate  }
@@ -612,6 +614,10 @@ end
 
 function dualscreen.getSingleScreenMode()
     return config.singleScreenMode
+end
+
+function dualscreen.getStackedSplit()
+    return config.stackedSplit
 end
 
 function dualscreen.getDisplayCount()
